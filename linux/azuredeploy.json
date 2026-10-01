@@ -1,0 +1,132 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.47.16.16243",
+      "templateHash": "16335212619299825601"
+    }
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of an existing Linux web app (built-in .NET image) in this resource group."
+      }
+    },
+    "distro": {
+      "type": "string",
+      "defaultValue": "upstream",
+      "allowedValues": [
+        "upstream",
+        "splunk"
+      ],
+      "metadata": {
+        "description": "Which distribution to install."
+      }
+    }
+  },
+  "variables": {
+    "distros": {
+      "upstream": {
+        "packageUri": "https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip",
+        "target": "/home/otel/upstream/1.17.0",
+        "settings": {
+          "CORECLR_ENABLE_PROFILING": "1",
+          "CORECLR_PROFILER": "{918728DD-259F-4A6A-AC2B-B85E1B658318}",
+          "CORECLR_PROFILER_PATH": "/home/otel/upstream/1.17.0/linux-x64/OpenTelemetry.AutoInstrumentation.Native.so",
+          "OTEL_DOTNET_AUTO_HOME": "/home/otel/upstream/1.17.0",
+          "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES": "DiagServer"
+        }
+      },
+      "splunk": {
+        "packageUri": "https://github.com/signalfx/splunk-otel-dotnet/releases/download/v1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip",
+        "target": "/home/otel/splunk/1.16.0",
+        "settings": {
+          "CORECLR_ENABLE_PROFILING": "1",
+          "CORECLR_PROFILER": "{918728DD-259F-4A6A-AC2B-B85E1B658318}",
+          "CORECLR_PROFILER_PATH": "/home/otel/splunk/1.16.0/linux-x64/OpenTelemetry.AutoInstrumentation.Native.so",
+          "OTEL_DOTNET_AUTO_HOME": "/home/otel/splunk/1.16.0",
+          "OTEL_DOTNET_AUTO_PLUGINS": "Splunk.OpenTelemetry.AutoInstrumentation.Plugin, Splunk.OpenTelemetry.AutoInstrumentation",
+          "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES": "DiagServer"
+        }
+      }
+    },
+    "d": "[variables('distros')[parameters('distro')]]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/sites/extensions",
+      "apiVersion": "2024-04-01",
+      "name": "[format('{0}/{1}', parameters('appName'), 'onedeploy')]",
+      "properties": {
+        "packageUri": "[variables('d').packageUri]",
+        "type": "zip",
+        "path": "[variables('d').target]",
+        "restart": false,
+        "clean": false
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('otel-appsettings-{0}', uniqueString(parameters('appName')))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "currentAppSettings": {
+            "value": "[list(resourceId('Microsoft.Web/sites/config', parameters('appName'), 'appsettings'), '2024-04-01').properties]"
+          },
+          "otelSettings": {
+            "value": "[variables('d').settings]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.47.16.16243",
+              "templateHash": "245372411840570680"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string"
+            },
+            "currentAppSettings": {
+              "type": "secureObject"
+            },
+            "otelSettings": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "exclude": "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES",
+            "mine": "[if(contains(parameters('currentAppSettings'), variables('exclude')), split(parameters('currentAppSettings')[variables('exclude')], ','), createArray())]",
+            "merged": "[union(variables('mine'), split(parameters('otelSettings')[variables('exclude')], ','))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('appName'), 'appsettings')]",
+              "properties": "[union(parameters('currentAppSettings'), parameters('otelSettings'), createObject(format('{0}', variables('exclude')), join(filter(variables('merged'), lambda('p', not(empty(trim(lambdaVariables('p')))))), ',')))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites/extensions', parameters('appName'), 'onedeploy')]"
+      ]
+    }
+  ]
+}
