@@ -20,7 +20,8 @@ DISTROS_JSON=$(cat <<'JSON'
   "upstream": {
     "name": "OpenTelemetry .NET automatic instrumentation",
     "version": "1.17.0",
-    "package_uri": "https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip",
+    "package_uri": "https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/upstream-1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip",
+    "source_uri": "https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip",
     "sha256": "cc56878f0155e28b6554924fbd420fcb8bec7108cd9d41836dc530764ac923f8",
     "target": "/home/otel/upstream/1.17.0",
     "settings": {
@@ -35,7 +36,8 @@ DISTROS_JSON=$(cat <<'JSON'
   "splunk": {
     "name": "Splunk Distribution of OpenTelemetry .NET",
     "version": "1.16.0",
-    "package_uri": "https://github.com/signalfx/splunk-otel-dotnet/releases/download/v1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip",
+    "package_uri": "https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/splunk-1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip",
+    "source_uri": "https://github.com/signalfx/splunk-otel-dotnet/releases/download/v1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip",
     "sha256": "3801716bbf0094c423c5c6b586e38b52f383aa1bc9c6bd4177bf4f3f6e32c384",
     "target": "/home/otel/splunk/1.16.0",
     "settings": {
@@ -146,7 +148,7 @@ if [ "$(kudu -o /dev/null -w '%{http_code}' "https://$SCM/api/vfs/$VFS_DIR/$MARK
   say "Already on /home: $TARGET"
 else
   say "Downloading $URL ..."
-  curl -fsSL -o "$tmp/bundle.zip" "$URL"
+  curl -fsSL --retry 3 -o "$tmp/bundle.zip" "$URL"
   got=$(python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$tmp/bundle.zip")
   [ "$got" = "$SHA" ] || die "sha256 mismatch: got $got, pinned $SHA. Not installing."
   say "sha256 ok. Pushing it onto /home through Kudu ..."

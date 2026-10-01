@@ -44,7 +44,7 @@ variable "distro" {
 locals {
   distros = {
     upstream = {
-      package_uri = "https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip"
+      package_uri = "https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/upstream-1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip"
       target      = "/home/otel/upstream/1.17.0"
       settings = {
         CORECLR_ENABLE_PROFILING           = "1"
@@ -55,7 +55,7 @@ locals {
       }
     }
     splunk = {
-      package_uri = "https://github.com/signalfx/splunk-otel-dotnet/releases/download/v1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip"
+      package_uri = "https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/splunk-1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip"
       target      = "/home/otel/splunk/1.16.0"
       settings = {
         CORECLR_ENABLE_PROFILING           = "1"
@@ -70,8 +70,8 @@ locals {
   d = local.distros[var.distro]
 }
 
-# Kudu fetches the zip from the distro's GitHub release (tag-pinned; this path can't check the
-# sha256 itself, install.sh does). A PUT action, not an azapi_resource: every app deployed with
+# Kudu fetches the zip from the public repo's release of it, an unmodified copy of the distro's own
+# release asset (#34; this path can't check the sha256 itself, install.sh does). A PUT action, not an azapi_resource: every app deployed with
 # `az webapp deploy` already has a `onedeploy` resource, and claiming it would fail with "already
 # exists" (measured).
 resource "azapi_resource_action" "bundle" {

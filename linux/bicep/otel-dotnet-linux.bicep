@@ -18,7 +18,7 @@ param distro string = 'upstream'
 
 var distros = {
   upstream: {
-    packageUri: 'https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip'
+    packageUri: 'https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/upstream-1.17.0/opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip'
     target: '/home/otel/upstream/1.17.0'
     settings: {
       CORECLR_ENABLE_PROFILING: '1'
@@ -29,7 +29,7 @@ var distros = {
     }
   }
   splunk: {
-    packageUri: 'https://github.com/signalfx/splunk-otel-dotnet/releases/download/v1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip'
+    packageUri: 'https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/splunk-1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip'
     target: '/home/otel/splunk/1.16.0'
     settings: {
       CORECLR_ENABLE_PROFILING: '1'
@@ -47,8 +47,9 @@ resource site 'Microsoft.Web/sites@2024-04-01' existing = {
   name: appName
 }
 
-// Kudu fetches the zip from the distro's GitHub release. Unlike install.sh, this path can't check
-// the sha256 pin itself: it trusts the tag-pinned release asset at deploy time.
+// Kudu fetches the zip from the public repo's release of it, an unmodified copy of the distro's own
+// release asset (#34). Unlike install.sh, this path can't check the sha256 pin itself: it trusts
+// that release asset at deploy time (the build checked it before releasing it).
 #disable-next-line BCP187
 resource bundle 'Microsoft.Web/sites/extensions@2024-04-01' = {
   parent: site
