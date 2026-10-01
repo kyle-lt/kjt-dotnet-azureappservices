@@ -27,6 +27,9 @@ var distros = {
       OTEL_DOTNET_AUTO_HOME: '/home/otel/upstream/1.17.0'
       OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES: 'DiagServer'
     }
+    othersSettings: [
+      { name: 'OTEL_DOTNET_AUTO_PLUGINS', value: 'Splunk.OpenTelemetry.AutoInstrumentation.Plugin, Splunk.OpenTelemetry.AutoInstrumentation' }
+    ]
   }
   splunk: {
     packageUri: 'https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/splunk-1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip'
@@ -39,6 +42,8 @@ var distros = {
       OTEL_DOTNET_AUTO_PLUGINS: 'Splunk.OpenTelemetry.AutoInstrumentation.Plugin, Splunk.OpenTelemetry.AutoInstrumentation'
       OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES: 'DiagServer'
     }
+    othersSettings: [
+    ]
   }
 }
 var d = distros[distro]
@@ -72,5 +77,6 @@ module settings 'otel-appsettings.bicep' = {
     appName: appName
     currentAppSettings: list(resourceId('Microsoft.Web/sites/config', appName, 'appsettings'), '2024-04-01').properties
     otelSettings: d.settings
+    othersSettings: d.othersSettings
   }
 }

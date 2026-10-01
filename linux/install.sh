@@ -65,13 +65,13 @@ USAGE
 say() { echo "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
 
-RG= APP= SLOT= DISTRO=upstream DRY=0 UNINSTALL=0
+RG= APP= SLOT= DISTRO=upstream DISTRO_GIVEN=0 DRY=0 UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -g|--resource-group) RG=${2:?}; shift 2 ;;
     -n|--name) APP=${2:?}; shift 2 ;;
     --slot) SLOT=${2:?}; shift 2 ;;
-    --distro) DISTRO=${2:?}; shift 2 ;;
+    --distro) DISTRO=${2:?}; DISTRO_GIVEN=1; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
     -h|--help) usage 0 ;;
@@ -83,8 +83,8 @@ for c in az curl python3; do command -v "$c" >/dev/null || die "$c is needed (Az
 
 field() { python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print(d[sys.argv[2]][sys.argv[3]] if sys.argv[2] in d else "")' "$DISTROS_JSON" "$DISTRO" "$1"; }
 [ -n "$(field version)" ] || die "unknown distro '$DISTRO' (choose: $(python3 -c 'import json,sys; print(", ".join(json.loads(sys.argv[1])))' "$DISTROS_JSON"))"
-NAME=$(field name); VERSION=$(field version); URL=$(field package_uri); SHA=$(field sha256); TARGET=$(field target)
-VFS_DIR=${TARGET#/home/}
+pick() { NAME=$(field name); VERSION=$(field version); URL=$(field package_uri); SHA=$(field sha256); TARGET=$(field target); VFS_DIR=${TARGET#/home/}; }
+pick
 SLOT_ARGS=(); [ -n "$SLOT" ] && SLOT_ARGS=(--slot "$SLOT")
 
 # --- 1. The app ---------------------------------------------------------------------------------
@@ -105,6 +105,16 @@ ours() { python3 -c 'import json,sys; print(json.loads(sys.argv[1])[sys.argv[2]]
 
 # --- Uninstall ----------------------------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
+  # Without --distro, uninstall what is installed: the distro whose OTEL_DOTNET_AUTO_HOME the app has.
+  # Assuming the default would leave another distro's own settings (Splunk's plugin) behind.
+  if [ "$DISTRO_GIVEN" = 0 ]; then
+    DISTRO=$(python3 -c '
+import json,sys
+home=next((s["value"] for s in json.loads(sys.argv[1]) if s["name"]=="OTEL_DOTNET_AUTO_HOME"), None)
+print(next((k for k,d in json.loads(sys.argv[2]).items() if home and d["settings"].get("OTEL_DOTNET_AUTO_HOME")==home), ""))' "$current" "$DISTROS_JSON")
+    [ -n "$DISTRO" ] || die "can't tell which distribution $APP has (OTEL_DOTNET_AUTO_HOME=$(setting OTEL_DOTNET_AUTO_HOME)). Pass --distro."
+    pick
+  fi
   # Only settings that still hold this distro's value, so nothing the operator changed is removed.
   names=$(python3 -c '
 import json,sys
@@ -132,9 +142,18 @@ cur=[p.strip() for p in sys.argv[1].split(",") if p.strip()]
 add=sys.argv[2]
 print(",".join(cur + ([add] if add not in cur else [])))' "$(setting OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES)" "$(ours OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES)")
 
+# Switching distros: settings only the other distro sets (Splunk's plugin), still at its value, go.
+stale=$(python3 -c '
+import json,sys
+cur={s["name"]:s["value"] for s in json.loads(sys.argv[1])}
+d=json.loads(sys.argv[2]); ours=d[sys.argv[3]]["settings"]
+print(" ".join(sorted({n for k,o in d.items() if k!=sys.argv[3] for n,v in o["settings"].items()
+                       if n not in ours and n!="OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES" and cur.get(n)==v})))' "$current" "$DISTROS_JSON" "$DISTRO")
+
 say "Installing $NAME $VERSION into $TARGET"
 if [ "$DRY" = 1 ]; then
   say "(dry run) would push $URL (sha256 $SHA) to https://$SCM/api/zip/$VFS_DIR/ unless already there"
+  [ -z "$stale" ] || say "(dry run) would remove the other distribution's settings: $stale"
   say "(dry run) would merge these App Settings:"
   python3 -c 'import json,sys; s=json.loads(sys.argv[1])[sys.argv[2]]["settings"]; s["OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES"]=sys.argv[3]; [print(f"  {k}={v}") for k,v in s.items()]' "$DISTROS_JSON" "$DISTRO" "$exclude"
   exit 0
@@ -165,6 +184,11 @@ python3 -c '
 import json,sys
 s=json.loads(sys.argv[1])[sys.argv[2]]["settings"]; s["OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES"]=sys.argv[3]
 json.dump([{"name":k,"value":v,"slotSetting":False} for k,v in s.items()], open(sys.argv[4],"w"))' "$DISTROS_JSON" "$DISTRO" "$exclude" "$tmp/settings.json"
+if [ -n "$stale" ]; then
+  say "Removing the other distribution's settings: $stale"
+  # shellcheck disable=SC2086
+  az webapp config appsettings delete -g "$RG" -n "$APP" ${SLOT_ARGS[@]+"${SLOT_ARGS[@]}"} --setting-names $stale -o none
+fi
 say "Setting the App Settings (merged with yours; this restarts the app) ..."
 az webapp config appsettings set -g "$RG" -n "$APP" ${SLOT_ARGS[@]+"${SLOT_ARGS[@]}"} --settings @"$tmp/settings.json" -o none
 

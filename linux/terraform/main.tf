@@ -11,7 +11,9 @@
 #     app_settings = merge(local.my_settings, module.otel.app_settings)
 #   }
 #
-# The settings are constants, so your web app keeps owning them. This module unzips the distro's
+# The settings are constants, so your web app keeps owning them. Switching `distro` changes the
+# output, and since app_settings is exactly what your web app declares, the other distro's own
+# settings (Splunk's plugin) go with it (#43). This module unzips the distro's
 # release onto the app's /home (`onedeploy`, no restart) and then restarts the app once, so it
 # starts with the files there whichever order Terraform applied things in.
 #

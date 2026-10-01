@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.47.16.16243",
-      "templateHash": "12649633163921990140"
+      "templateHash": "723663971692005482"
     }
   },
   "parameters": {
@@ -38,7 +38,13 @@
           "CORECLR_PROFILER_PATH": "/home/otel/upstream/1.17.0/linux-x64/OpenTelemetry.AutoInstrumentation.Native.so",
           "OTEL_DOTNET_AUTO_HOME": "/home/otel/upstream/1.17.0",
           "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES": "DiagServer"
-        }
+        },
+        "othersSettings": [
+          {
+            "name": "OTEL_DOTNET_AUTO_PLUGINS",
+            "value": "Splunk.OpenTelemetry.AutoInstrumentation.Plugin, Splunk.OpenTelemetry.AutoInstrumentation"
+          }
+        ]
       },
       "splunk": {
         "packageUri": "https://github.com/kyle-lt/kjt-dotnet-azureappservices/releases/download/splunk-1.16.0/splunk-opentelemetry-dotnet-linux-glibc-x64.zip",
@@ -50,7 +56,8 @@
           "OTEL_DOTNET_AUTO_HOME": "/home/otel/splunk/1.16.0",
           "OTEL_DOTNET_AUTO_PLUGINS": "Splunk.OpenTelemetry.AutoInstrumentation.Plugin, Splunk.OpenTelemetry.AutoInstrumentation",
           "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES": "DiagServer"
-        }
+        },
+        "othersSettings": []
       }
     },
     "d": "[variables('distros')[parameters('distro')]]"
@@ -86,6 +93,9 @@
           },
           "otelSettings": {
             "value": "[variables('d').settings]"
+          },
+          "othersSettings": {
+            "value": "[variables('d').othersSettings]"
           }
         },
         "template": {
@@ -95,7 +105,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.47.16.16243",
-              "templateHash": "245372411840570680"
+              "templateHash": "2723621565155447251"
             }
           },
           "parameters": {
@@ -107,9 +117,14 @@
             },
             "otelSettings": {
               "type": "object"
+            },
+            "othersSettings": {
+              "type": "array",
+              "defaultValue": []
             }
           },
           "variables": {
+            "kept": "[toObject(filter(items(parameters('currentAppSettings')), lambda('s', not(contains(parameters('othersSettings'), createObject('name', lambdaVariables('s').key, 'value', lambdaVariables('s').value))))), lambda('s', lambdaVariables('s').key), lambda('s', lambdaVariables('s').value))]",
             "exclude": "OTEL_DOTNET_AUTO_EXCLUDE_PROCESSES",
             "mine": "[if(contains(parameters('currentAppSettings'), variables('exclude')), split(parameters('currentAppSettings')[variables('exclude')], ','), createArray())]",
             "merged": "[union(variables('mine'), split(parameters('otelSettings')[variables('exclude')], ','))]"
@@ -119,7 +134,7 @@
               "type": "Microsoft.Web/sites/config",
               "apiVersion": "2024-04-01",
               "name": "[format('{0}/{1}', parameters('appName'), 'appsettings')]",
-              "properties": "[union(parameters('currentAppSettings'), parameters('otelSettings'), createObject(format('{0}', variables('exclude')), join(filter(variables('merged'), lambda('p', not(empty(trim(lambdaVariables('p')))))), ',')))]"
+              "properties": "[union(variables('kept'), parameters('otelSettings'), createObject(format('{0}', variables('exclude')), join(filter(variables('merged'), lambda('p', not(empty(trim(lambdaVariables('p')))))), ',')))]"
             }
           ]
         }
