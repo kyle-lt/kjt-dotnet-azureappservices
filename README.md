@@ -35,7 +35,9 @@ Step 2 restarts your app, and that start finds the files already there. So the v
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fkyle-lt%2Fkjt-dotnet-azureappservices%2Fmain%2Flinux%2Fazuredeploy.json)
 
-Pick the **resource group your app is in**, type the app's name, choose a distribution, then **Review + create**. To choose the app from a list instead, see [#30](https://github.com/kyle-lt/OtelSiteExtension/issues/30) (planned).
+Pick the **resource group your app is in**, type the app's name, choose a distribution, then **Review + create**.
+
+If the deployment fails at the `onedeploy` step with an *internal server error*, **redeploy it**. Azure intermittently reports that even when the copy went through (seen once in four test deployments). Nothing is switched on until the deployment succeeds, so your app is unaffected meanwhile. The same applies to Bicep and to `terraform apply`. To choose the app from a list instead, see [#30](https://github.com/kyle-lt/OtelSiteExtension/issues/30) (planned).
 
 ### Option 2: one command in Cloud Shell
 
